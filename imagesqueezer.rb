@@ -35,10 +35,12 @@ require 'ostruct'
 require 'date'
 require 'find'
 require 'RMagick'
+require 'nokogiri'
 
 
 class App
   VERSION = '0.0.1'
+  MEGABYTE = 1048576.0
   
   attr_reader :options
 
@@ -127,44 +129,44 @@ class App
     end
     
     def process_command
-      old_size = 0
-      new_size = 0
+      
+      # Array mit real existierenden PNG- und JPG-Files
+      # Per XPath alle PNG- und JPG-Files in magazine.xml durchlaufen
+      # Bei jedem File checken ob in XML verlinkt. Falls nein: Löschen
+      # Falls ja, PNG und alpha-channel:  pngcrush
+      # Falls ja, PNG und kein alpha-channel: optimieren, in jpg umwandeln und referenz in xml anpassen
+      
+      old_size = directory_size_in_mb(@dir)
       png_counter = 0
       start_time = Time.now
-
-      Find.find(@dir) do |path|
-        if FileTest.directory?(path)
-          if File.basename(path)[0] == ?.
-            Find.prune       # Don't look any further into this directory.
-          else
-            next
-          end
-        else
-          unless /.*\.(png|PNG)/.match(path) == nil
-            image = Magick::Image.read(path).first
-            if image.format.to_s == "PNG"
-              png_counter += 1
-              old_size += FileTest.size(path)
-              image.resize(1,1)
-              image.alpha = "on"
-              image.info.channel(OpacityChannel)
-
-              # image.format = "JPG"
-              image.write(path)
-              # TODO Filename muss noch von PNG auf JPG umgeschrieben werden
-              new_size += FileTest.size(path)
-
-              
-            end
-          end
+      # find existing PNG files
+      existing_pngs = all_magazine_pngs("#{@dir}/images")
+      indexed_pngs = []
+      
+      file = File.open("#{@dir}/magazine.xml")
+      doc = Nokogiri::XML(file) 
+      # fetch elements named 'url'
+      doc.elements.xpath("//url").each do |node| 
+        # fetch elements matching /.*.png/
+        if  /.*.png/.match(node.children.first.content)
+          png_counter += 1
+          indexed_pngs << node.children.first.content 
         end
-      end
+      end  
+        
+      file.close
       unless @options.quiet
         puts "***********"
         puts "Processing took #{Time.now - start_time} seconds."
-        puts "Found and compressed #{png_counter} PNGs."
-        puts "We saved #{old_size - new_size} bytes!"
+        puts "Found #{png_counter} PNGs indexed in the XML out of #{existing_pngs.count} existing ones."
+        if existing_pngs.sort! == indexed_pngs.sort!
+          puts "Existing PNGs match indexed PNGs."
+        else
+          puts "Existing PNGs DO NOT match indexed PNGs."
+        end
+        puts "We saved #{old_size - directory_size_in_mb(@dir)} MB!"
         puts "***********"
+        puts "Dir is: #{@dir}"
       end
     end
 
@@ -176,6 +178,30 @@ class App
       # @stdin.each do |line| 
       #  # TO DO - process each line
       #end
+    end
+    
+    def all_magazine_pngs(my_dir)
+      image_files = []
+      Find.find(my_dir) do |path|
+        if FileTest.directory?(path)
+          if File.basename(path)[0] == ?.
+            Find.prune       # Don't look any further into this directory.
+          else
+            next
+          end
+        else
+          unless /.*\.(png|PNG)/.match(path) == nil
+            image_files << path.gsub("#{@dir}/", '')
+          end
+        end
+      end
+      return image_files
+    end
+    
+    def directory_size_in_mb(path)
+      counter = 0
+      Find.find(path) {|f| counter += File.size(f) }
+      return counter / MEGABYTE
     end
 end
 
