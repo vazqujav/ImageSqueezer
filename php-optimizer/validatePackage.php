@@ -331,6 +331,7 @@
 		$originalPaths[] = getInternalPath($pngFile->path);
 		$newPaths[]      = getInternalPath($newPath);
 		
+		# creates image-instance from PNG
 		$image = @imagecreatefrompng($pngFile->path);
 		if(!$image)
 			throw new Excepton("Failed to load PNG file: ".$pngFile->path);
@@ -343,6 +344,7 @@
 			throw new Exception("Failed to merge with watermark");*/
 		//END TEST WATERMARK CODE	
 			
+		# creates JPG from $image with quality 85
 		if(!imagejpeg($image, $newPath, 85))
 			throw new Exception("Failed to write JPG file to ".$newPath);	
 		

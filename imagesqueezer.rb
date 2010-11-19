@@ -35,11 +35,13 @@ require 'ostruct'
 require 'date'
 require 'find'
 require 'RMagick'
+include Magick
 require 'nokogiri'
 
 
 class App
   VERSION = '0.0.1'
+  # needed to convert bytes...
   MEGABYTE = 1048576.0
   
   attr_reader :options
@@ -130,15 +132,13 @@ class App
     
     def process_command
       
-      # Array mit real existierenden PNG- und JPG-Files
-      # Per XPath alle PNG- und JPG-Files in magazine.xml durchlaufen
-      # Bei jedem File checken ob in XML verlinkt. Falls nein: Löschen
-      # Falls ja, PNG und alpha-channel:  pngcrush
-      # Falls ja, PNG und kein alpha-channel: optimieren, in jpg umwandeln und referenz in xml anpassen
-      
       old_size = directory_size_in_mb(@dir)
       png_counter = 0
+      converted_png_counter = 0
       start_time = Time.now
+      puts "***********"
+      puts "Starting script..."
+      puts "PNGs, you better start running!"
       # find existing PNG files
       existing_pngs = all_magazine_pngs("#{@dir}/images")
       indexed_pngs = []
@@ -151,6 +151,32 @@ class App
         if  /.*.png/.match(node.children.first.content)
           png_counter += 1
           indexed_pngs << node.children.first.content 
+          # my_png = ImageList.new("#{@dir}#{node.children.first.content}")
+          # ...and then use my_png.alpha? to check for alpha-channel. doesn't seem to work with PNGs in digital magazine.
+          output = `convert #{@dir}/#{node.children.first.content} -resize 1x1 -alpha on -channel o -format "%[fx:u.a]" info:`
+          result = $?.success?
+          # check convert exit-status
+          if result
+            output_array = []
+            # output string into array
+            output.each("\n") {|s| output_array << s.strip }
+            # check if the "magic" value returned from convert-command. If it's < 1 the image contains alpha transparency and is not converted.
+            if output_array[0].to_i != 1
+              # TODO implement PNG-crush on those PNGs
+            else
+              my_png = ImageList.new("#{@dir}#{node.children.first.content}")
+              my_png.first.format = "JPG"
+              old_png = node.children.first.content
+              node.children.first.content = node.children.first.content.sub(/(.png)\z/,'.jpg')
+              my_png.write("#{@dir}#{node.children.first.content}") { self.quality = 85 }
+              File.delete("#{@dir}#{old_png}")
+              converted_png_counter += 1
+            end
+          else
+            # something went wrong with convert-command. 
+            puts "ERROR - #{@dir}/#{node.children.first.content}: Failed to check png for alpha usage"
+          end
+        
         end
       end  
         
@@ -160,13 +186,13 @@ class App
         puts "Processing took #{Time.now - start_time} seconds."
         puts "Found #{png_counter} PNGs indexed in the XML out of #{existing_pngs.count} existing ones."
         if existing_pngs.sort! == indexed_pngs.sort!
-          puts "Existing PNGs match indexed PNGs."
+          puts "Existing number of PNGs matches indexed one."
         else
-          puts "Existing PNGs DO NOT match indexed PNGs."
+          puts "Existing number of PNGs DOES NOT match indexed one."
         end
-        puts "We saved #{old_size - directory_size_in_mb(@dir)} MB!"
+        puts "Converted #{converted_png_counter} PNGs to JPGs."
+        puts "We saved #{old_size - directory_size_in_mb(@dir)} MB of former #{old_size} MB!"
         puts "***********"
-        puts "Dir is: #{@dir}"
       end
     end
 
