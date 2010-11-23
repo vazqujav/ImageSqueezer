@@ -41,8 +41,6 @@ require 'nokogiri'
 
 class App
   VERSION = '0.0.1'
-  # needed to convert bytes...
-  MEGABYTE = 1048576.0
   
   attr_reader :options
 
@@ -60,15 +58,16 @@ class App
   def run
         
     if parsed_options? && arguments_valid? 
-      
-      puts "Start at #{DateTime.now}\n\n" if @options.verbose
+      start_time = Time.now
+      puts "Start at #{Time.now}\n\n" if @options.verbose
       
       output_options if @options.verbose # [Optional]
             
       process_arguments            
       process_command
       
-      puts "\nFinished at #{DateTime.now}" if @options.verbose
+      puts "\nFinished at #{Time.now}" if @options.verbose
+      puts "\nProcess took #{start_time - Time.now} seconds" if @options.verbose
       
     else
       output_usage
@@ -130,70 +129,16 @@ class App
       puts "#{File.basename(__FILE__)} version #{VERSION}"
     end
     
-    def process_command
-      
-      old_size = directory_size_in_mb(@dir)
-      png_counter = 0
-      converted_png_counter = 0
+    def process_command    
+      old_size = directory_size_in_mb(@dir)    
       start_time = Time.now
-      puts "***********"
-      puts "Starting script..."
-      puts "PNGs, you better start running!"
-      # find existing PNG files
-      existing_pngs = all_magazine_pngs("#{@dir}/images")
-      indexed_pngs = []
-      
-      file = File.open("#{@dir}/magazine.xml")
-      doc = Nokogiri::XML(file) 
-      # fetch elements named 'url'
-      doc.elements.xpath("//url").each do |node| 
-        # fetch elements matching /.*.png/
-        if  /.*.png/.match(node.children.first.content)
-          png_counter += 1
-          indexed_pngs << node.children.first.content 
-          # my_png = ImageList.new("#{@dir}#{node.children.first.content}")
-          # ...and then use my_png.alpha? to check for alpha-channel. doesn't seem to work with PNGs in digital magazine.
-          output = `convert #{@dir}/#{node.children.first.content} -resize 1x1 -alpha on -channel o -format "%[fx:u.a]" info:`
-          result = $?.success?
-          # check convert exit-status
-          if result
-            output_array = []
-            # output string into array
-            output.each("\n") {|s| output_array << s.strip }
-            # check if the "magic" value returned from convert-command. If it's < 1 the image contains alpha transparency and is not converted.
-            if output_array[0].to_i != 1
-              # TODO implement PNG-crush on those PNGs
-            else
-              my_png = ImageList.new("#{@dir}#{node.children.first.content}")
-              my_png.first.format = "JPG"
-              old_png = node.children.first.content
-              node.children.first.content = node.children.first.content.sub(/(.png)\z/,'.jpg')
-              my_png.write("#{@dir}#{node.children.first.content}") { self.quality = 85 }
-              File.delete("#{@dir}#{old_png}")
-              converted_png_counter += 1
-            end
-          else
-            # something went wrong with convert-command. 
-            puts "ERROR - #{@dir}/#{node.children.first.content}: Failed to check png for alpha usage"
-          end
-        
-        end
-      end  
-        
-      file.close
-      unless @options.quiet
-        puts "***********"
-        puts "Processing took #{Time.now - start_time} seconds."
-        puts "Found #{png_counter} PNGs indexed in the XML out of #{existing_pngs.count} existing ones."
-        if existing_pngs.sort! == indexed_pngs.sort!
-          puts "Existing number of PNGs matches indexed one."
-        else
-          puts "Existing number of PNGs DOES NOT match indexed one."
-        end
-        puts "Converted #{converted_png_counter} PNGs to JPGs."
-        puts "We saved #{old_size - directory_size_in_mb(@dir)} MB of former #{old_size} MB!"
-        puts "***********"
-      end
+      smart_puts("INFO: Starting script...")
+      existing_images = all_magazine_images("#{@dir}/images")
+      old_png_count = existing_images[:png].count
+      compress_pngs_without_alpha(@dir, "magazine.xml", 85, old_png_count) 
+      # TODO implement some lossless brute-force image compression, e.g. pngcrush or jpgoptim 
+      smart_puts("INFO: We saved #{old_size - directory_size_in_mb(@dir)} MB of former #{old_size} MB!")
+      smart_puts("INFO: Script ended.")
     end
 
     def process_standard_input
@@ -205,35 +150,88 @@ class App
       #  # TO DO - process each line
       #end
     end
-    
-    def all_magazine_pngs(my_dir)
-      image_files = []
-      Find.find(my_dir) do |path|
-        if FileTest.directory?(path)
-          if File.basename(path)[0] == ?.
-            Find.prune       # Don't look any further into this directory.
+  
+  end   
+  
+  # convert PNGs with no alpha value to JPGs, reduce JPG quality and change filename in XML file
+  def compress_pngs_without_alpha(my_dir, xml_file, jpg_quality, total_pngs)
+    png_counter = 0
+    converted_png_counter = 0
+    indexed_pngs = []
+    if File.writable?("#{my_dir}/#{xml_file}")
+      doc = Nokogiri::XML(File.open("#{my_dir}/#{xml_file}", "r")) 
+      # fetch elements named 'url'
+      doc.elements.xpath("//url").each do |node| 
+        # fetch elements matching /.*.png/
+        if node.children.first.content =~ /.*\.(png|PNG)\z/
+          png_counter += 1
+          indexed_pngs << node.children.first.content 
+          output = `convert #{my_dir}/#{node.children.first.content} #{if @options.quiet; "-quiet"; end} -resize 1x1 -alpha on -channel o -format "%[fx:u.a]" info:`
+          result = $?.success?
+          # check convert exit-status
+          if result
+            output_array = []
+            # output string into array
+            output.each("\n") {|s| output_array << s.strip }
+            # check if the "magic" value returned from convert-command. If it's < 1 the image contains alpha transparency and is not converted.
+            unless output_array[0].to_i != 1
+              my_png = ImageList.new("#{my_dir}#{node.children.first.content}")
+              my_png.first.format = "JPG"
+              old_png = node.children.first.content
+              node.children.first.content = node.children.first.content.sub(/(.png)\z/,'.jpg')
+              my_png.write("#{my_dir}#{node.children.first.content}") { self.quality = jpg_quality }
+              File.delete("#{my_dir}#{old_png}")
+              converted_png_counter += 1
+            end
           else
-            next
-          end
-        else
-          unless /.*\.(png|PNG)/.match(path) == nil
-            image_files << path.gsub("#{@dir}/", '')
+            # something went wrong with convert-command. 
+            smart_puts("ERROR - #{my_dir}/#{node.children.first.content}: Failed to check png for alpha usage")
           end
         end
       end
-      return image_files
+    else
+      smart_puts("ERROR: XML file not writable!")
     end
-    
-    def directory_size_in_mb(path)
-      counter = 0
-      Find.find(path) {|f| counter += File.size(f) }
-      return counter / MEGABYTE
+    File.open("#{my_dir}/#{xml_file}", "w") {|f| doc.write_xml_to f}
+    smart_puts("INFO: Found #{png_counter} PNGs indexed in the XML out of #{total_pngs} existing ones.")
+    smart_puts("INFO: Converted #{converted_png_counter} PNGs with no alpha-value to JPGs.")
+  end   
+  
+  # return array containing all PNG and JPG files in my_dir
+  def all_magazine_images(my_dir)
+    image_files = { :jpg => [], :png => []}
+    Find.find(my_dir) do |path|
+      if FileTest.directory?(path)
+        if File.basename(path)[0] == ?.
+          Find.prune       # Don't look any further into this directory.
+        else
+          next
+        end
+      else
+        case
+        # collect existing PNGs
+        when path =~ /.*\.(png|PNG)\z/
+          image_files[:png] << path.gsub("#{@dir}/", '')
+        # collect existing JPGs
+        when path =~ /.*\.(jpg|JPG|jpeg|JPEG)\z/
+          image_files[:jpg] << path.gsub("#{@dir}/", '')
+        end
+      end
     end
-end
+    return image_files
+  end
+  
+  # return directory size in MB
+  def directory_size_in_mb(path)
+    counter = 0
+    Find.find(path) {|f| counter += File.size(f) }
+    # Megabyte has 1048576.0 bytes
+    return counter / 1048576.0
+  end  
 
-
-# TO DO - Add your Modules, Classes, etc
-
+  def smart_puts(my_string)
+    puts my_string unless @options.quiet
+  end
 
 # Create and run the application
 app = App.new(ARGV, STDIN)
