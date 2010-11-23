@@ -27,17 +27,13 @@
 # == Copyright
 #   Copyright (c) 2010 Ringier AG, Javier Vazquez
 
-
-
 require 'optparse' 
 require 'rdoc/usage'
 require 'ostruct'
 require 'date'
 require 'find'
 require 'RMagick'
-include Magick
 require 'nokogiri'
-
 
 class App
   VERSION = '0.0.1'
