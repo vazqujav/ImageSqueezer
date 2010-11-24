@@ -39,6 +39,7 @@ require 'nokogiri'
 
 class App
   VERSION = '0.0.1'
+  JPEG_QUALITY = 85
   
   attr_reader :options
 
@@ -133,9 +134,9 @@ class App
       smart_puts("INFO: Starting script...")
       existing_images = all_magazine_images("#{@dir}/images")
       old_png_count = existing_images[:png].count
-      compress_pngs_without_alpha(@dir, "magazine.xml", 85, old_png_count) 
+      compress_pngs_without_alpha(@dir, "magazine.xml", JPEG_QUALITY, old_png_count) 
       # TODO implement some lossless brute-force image compression, e.g. pngcrush or jpgoptim 
-      smart_puts("INFO: We saved #{old_size - directory_size_in_mb(@dir)} MB of former #{old_size} MB!")
+      smart_puts("INFO: Size was #{old_size} MB and is now #{directory_size_in_mb(@dir)} MB. We saved #{old_size - directory_size_in_mb(@dir)} MB!")
       smart_puts("INFO: Script ended.")
     end
 
