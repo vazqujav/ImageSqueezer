@@ -26,6 +26,8 @@
 #
 # == Copyright
 #   Copyright (c) 2010 Ringier AG, Javier Vazquez
+require "rubygems"
+require "bundler/setup"
 
 require 'optparse' 
 require 'rdoc/usage'
