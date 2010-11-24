@@ -129,14 +129,13 @@ class App
     end
     
     def process_command    
-      old_size = directory_size_in_mb(@dir)    
-      start_time = Time.now
+      old_size = directory_size_in_mb(@dir) 
       smart_puts("INFO: Starting script...")
       existing_images = all_magazine_images("#{@dir}/images")
       old_png_count = existing_images[:png].count
       compress_pngs_without_alpha(@dir, "magazine.xml", JPEG_QUALITY, old_png_count) 
       # TODO implement some lossless brute-force image compression, e.g. pngcrush or jpgoptim 
-      smart_puts("INFO: Size was #{old_size} MB and is now #{directory_size_in_mb(@dir)} MB. We saved #{old_size - directory_size_in_mb(@dir)} MB!")
+      smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB. We saved #{(old_size - directory_size_in_mb(@dir)).round} MB!")
       smart_puts("INFO: Script ended.")
     end
 
@@ -158,7 +157,7 @@ class App
     converted_png_counter = 0
     indexed_pngs = []
     if File.writable?("#{my_dir}/#{xml_file}")
-      doc = Nokogiri::XML(File.open("#{my_dir}/#{xml_file}", "r")) 
+      doc = ::Nokogiri::XML(File.open("#{my_dir}/#{xml_file}", "r")) 
       # fetch elements named 'url'
       doc.elements.xpath("//url").each do |node| 
         # fetch elements matching /.*.png/
@@ -174,7 +173,7 @@ class App
             output.each("\n") {|s| output_array << s.strip }
             # check if the "magic" value returned from convert-command. If it's < 1 the image contains alpha transparency and is not converted.
             unless output_array[0].to_i != 1
-              my_png = ImageList.new("#{my_dir}#{node.children.first.content}")
+              my_png = ::Magick::ImageList.new("#{my_dir}#{node.children.first.content}")
               my_png.first.format = "JPG"
               old_png = node.children.first.content
               node.children.first.content = node.children.first.content.sub(/(.png)\z/,'.jpg')
