@@ -1,24 +1,18 @@
 #!/usr/bin/env ruby 
 
 # == Synopsis 
-#   Compresses all JPGs and PNGs with no transparency to JPGs with a certain quality value. 
-#   Quality option and the directory are required arguments!
+#   Compresses all JPGs and PNGs with no transparency to smaller JPGs.
 #
 # == Examples
 #   imagesqueezer.rb -Q 95 /home/myimages
-#   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs and JPGs. 
-#   Both would be converted to JPGs with quality-value 95.
-#
-#   Other examples:
-#   <Other examples go here>
+#   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs and JPGs.
 #
 # == Usage 
-#   imagesqueezer.rb -Q <INTEGER> [options] directory
+#   imagesqueezer.rb [options] directory
 #
 #   For help use: imagesqueezer.rb -h
 #
 # == Options
-#   -Q, --quality       Sets the JPG image quality. Integer value from 0 (worst) to 100 (best).
 #   -h, --help          Displays help message
 #   -v, --version       Display the version, then exit
 #   -q, --quiet         Output as little as possible, overrides verbose
@@ -51,9 +45,14 @@ require 'date'
 require 'find'
 require 'RMagick'
 require 'nokogiri'
+require 'tempfile'
 
 class App
   VERSION = '1.0'
+  # Quality of compressed JPG for former PNG
+  PNG_COMPRESSION = 85
+  # Quality of compressed JPG for former JPG
+  JPG_COMPRESSION = 95
   
   attr_reader :options
 
@@ -99,8 +98,6 @@ class App
       opts.on('-h', '--help')       { output_help }
       opts.on('-V', '--verbose')    { @options.verbose = true }  
       opts.on('-q', '--quiet')      { @options.quiet = true }
-      # FIXME passing the option using a block probably isn't the most elegant way to do it...
-      opts.on('-Q', '--quality NUM', Integer, "JPG Quality") { |n| @options.quality = n }
             
       opts.parse!(@arguments) rescue return false
       
@@ -111,7 +108,6 @@ class App
     # Performs post-parse processing on options
     def process_options
       @options.verbose = false if @options.quiet
-      @jpg_quality = @options.quality
     end
     
     def output_options
@@ -127,7 +123,7 @@ class App
     def arguments_valid?
       # TODO arguments should be validated in a better way.
       # The path and the quality value are required arguments.
-      true if @arguments.length == 2
+      true if @arguments.length == 1
     end
     
     # Setup the arguments
@@ -152,9 +148,9 @@ class App
       old_size = directory_size_in_mb(@dir) 
       smart_puts("INFO: Starting script...")
       existing_images = all_magazine_images("#{@dir}/images")
-      compress_jpgs(existing_images[:jpg], @jpg_quality)
+      compress_jpgs(existing_images[:jpg], JPG_COMPRESSION)
       old_png_count = existing_images[:png].count
-      compress_pngs_without_alpha(@dir, "magazine.xml", @jpg_quality, old_png_count) 
+      compress_pngs_without_alpha(@dir, "magazine.xml", PNG_COMPRESSION, old_png_count) 
       smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB. We saved #{(old_size - directory_size_in_mb(@dir)).round} MB!")
       smart_puts("INFO: Script ended.")
     end
@@ -174,8 +170,15 @@ class App
   def compress_jpgs(my_jpgs, jpg_quality)
     smart_puts("INFO: Found #{my_jpgs.count} existing JPGs on filesystem.")
     my_jpgs.each do |image|
+      tmp_jpg = Tempfile.new('tempjpg')
+      # read jpg file
       my_jpg = ::Magick::Image.read("#{@dir}/#{image}").first
-      my_jpg.write("#{@dir}/#{image}") { self.quality = jpg_quality }
+      # write jpg image to tempfile
+      my_jpg.write(tmp_jpg.path) { self.quality = jpg_quality }
+      # check if new jpg would be smaller than the old one
+      if tmp_jpg.size < File.size("#{@dir}/#{image}")
+        my_jpg.write("#{@dir}/#{image}") { self.quality = jpg_quality }
+      end
     end
   end
   
