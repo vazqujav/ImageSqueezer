@@ -179,6 +179,7 @@ class App
       if tmp_jpg.size < File.size("#{@dir}/#{image}")
         my_jpg.write("#{@dir}/#{image}") { self.quality = jpg_quality }
       end
+      tmp_jpg.close!
     end
   end
   
