@@ -1,21 +1,24 @@
 #!/usr/bin/env ruby 
 
 # == Synopsis 
-#   This app looks for PNGs with no transparency and converts them into smaller JPGs
+#   Compresses all JPGs and PNGs with no transparency to JPGs with a certain quality value. 
+#   Quality option and the directory are required arguments!
 #
 # == Examples
-#   imagesqueezer /home/myimages
-#   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs
+#   imagesqueezer.rb -Q 95 /home/myimages
+#   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs and JPGs. 
+#   Both would be converted to JPGs with quality-value 95.
 #
 #   Other examples:
 #   <Other examples go here>
 #
 # == Usage 
-#   imagesqueezer [options] directory
+#   imagesqueezer.rb -Q <INTEGER> [options] directory
 #
-#   For help use: imagesqueezer -h
+#   For help use: imagesqueezer.rb -h
 #
 # == Options
+#   -Q, --quality       Sets the JPG image quality. Integer value from 0 (worst) to 100 (best).
 #   -h, --help          Displays help message
 #   -v, --version       Display the version, then exit
 #   -q, --quiet         Output as little as possible, overrides verbose
@@ -50,9 +53,7 @@ require 'RMagick'
 require 'nokogiri'
 
 class App
-  VERSION = '0.0.1'
-  # SET QUALITY OF OUTPUT JPGs. 85 has been tested and seems to be OK
-  JPEG_QUALITY = 85
+  VERSION = '1.0'
   
   attr_reader :options
 
@@ -64,6 +65,7 @@ class App
     @options = OpenStruct.new
     @options.verbose = false
     @options.quiet = false
+    @options.quality = 95
   end
 
   # Parse options, check arguments, then process the command
@@ -97,6 +99,8 @@ class App
       opts.on('-h', '--help')       { output_help }
       opts.on('-V', '--verbose')    { @options.verbose = true }  
       opts.on('-q', '--quiet')      { @options.quiet = true }
+      # FIXME passing the option using a block probably isn't the most elegant way to do it...
+      opts.on('-Q', '--quality NUM', Integer, "JPG Quality") { |n| @options.quality = n }
             
       opts.parse!(@arguments) rescue return false
       
@@ -107,6 +111,7 @@ class App
     # Performs post-parse processing on options
     def process_options
       @options.verbose = false if @options.quiet
+      @jpg_quality = @options.quality
     end
     
     def output_options
@@ -120,8 +125,9 @@ class App
 
     # True if required arguments were provided
     def arguments_valid?
-      # TO DO - implement your real logic here
-      true if @arguments.length == 1 
+      # TODO arguments should be validated in a better way.
+      # The path and the quality value are required arguments.
+      true if @arguments.length == 2
     end
     
     # Setup the arguments
@@ -146,9 +152,9 @@ class App
       old_size = directory_size_in_mb(@dir) 
       smart_puts("INFO: Starting script...")
       existing_images = all_magazine_images("#{@dir}/images")
+      compress_jpgs(existing_images[:jpg], @jpg_quality)
       old_png_count = existing_images[:png].count
-      compress_pngs_without_alpha(@dir, "magazine.xml", JPEG_QUALITY, old_png_count) 
-      # TODO implement some lossless brute-force image compression, e.g. pngcrush or jpgoptim 
+      compress_pngs_without_alpha(@dir, "magazine.xml", @jpg_quality, old_png_count) 
       smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB. We saved #{(old_size - directory_size_in_mb(@dir)).round} MB!")
       smart_puts("INFO: Script ended.")
     end
@@ -164,6 +170,14 @@ class App
     end
   
   end   
+  
+  def compress_jpgs(my_jpgs, jpg_quality)
+    smart_puts("INFO: Found #{my_jpgs.count} existing JPGs on filesystem.")
+    my_jpgs.each do |image|
+      my_jpg = ::Magick::Image.read("#{@dir}/#{image}").first
+      my_jpg.write("#{@dir}/#{image}") { self.quality = jpg_quality }
+    end
+  end
   
   # convert PNGs with no alpha value to JPGs, reduce JPG quality and change filename in XML file
   def compress_pngs_without_alpha(my_dir, xml_file, jpg_quality, total_pngs)
@@ -181,11 +195,11 @@ class App
         indexed_pngs << node.children.first 
       end
     end
-    
+    smart_puts("INFO: Found #{png_counter} PNGs indexed in the XML out of #{total_pngs} existing on filesystem.")
     indexed_pngs.each do |indexed_png|
-      if File.exists?("#{my_dir}#{indexed_png.content}")
+      if File.exists?("#{my_dir}/#{indexed_png.content}")
         # read png from filesystem
-        my_png = ::Magick::Image.read("#{my_dir}#{indexed_png.content}").first
+        my_png = ::Magick::Image.read("#{my_dir}/#{indexed_png.content}").first
         # check if image has any transparency. 0 means there's no transparency value
         if my_png.resize(1,1).pixel_color(0,0).opacity == 0
           my_png.format = "JPG"
@@ -193,18 +207,17 @@ class App
           # change filename in magazine.xml
           indexed_png.content = indexed_png.content.sub(/(.png)\z/,'.jpg')
           # change filename on filesystem
-          File.rename("#{my_dir}#{old_png}", "#{my_dir}#{indexed_png.content}")
+          File.rename("#{my_dir}/#{old_png}", "#{my_dir}/#{indexed_png.content}")
           # write converted png as jpg to filesystem
-          my_png.write("#{my_dir}#{indexed_png.content}") { self.quality = jpg_quality }
-          smart_puts("WARNING: We are at #{Dir.pwd} and PNG #{my_dir}#{old_png} was NOT DELETED") if File.exists?("#{my_dir}#{old_png}")
-          smart_puts("WARNING: We are at #{Dir.pwd} and JPG #{my_dir}#{indexed_png.content} was NOT CREATED") unless File.exists?("#{my_dir}#{indexed_png.content}") 
+          my_png.write("#{my_dir}/#{indexed_png.content}") { self.quality = jpg_quality }
+          smart_puts("WARNING: We are at #{Dir.pwd} and PNG #{my_dir}/#{old_png} was NOT DELETED") if File.exists?("#{my_dir}/#{old_png}")
+          smart_puts("WARNING: We are at #{Dir.pwd} and JPG #{my_dir}/#{indexed_png.content} was NOT CREATED") unless File.exists?("#{my_dir}/#{indexed_png.content}") 
           converted_png_counter += 1
         end
       end        
     end
     
     File.open("#{my_dir}/#{xml_file}", "w") {|f| doc.write_xml_to f}
-    smart_puts("INFO: Found #{png_counter} PNGs indexed in the XML out of #{total_pngs} existing on filesystem.")
     smart_puts("INFO: Converted #{converted_png_counter} PNGs with no alpha-value to JPGs.")
   end   
   
