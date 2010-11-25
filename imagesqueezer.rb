@@ -35,17 +35,15 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require "rubygems"
-require "bundler/setup"
-
 require 'optparse' 
 require 'rdoc/usage'
 require 'ostruct'
 require 'date'
 require 'find'
+require 'tempfile'
+
 require 'RMagick'
 require 'nokogiri'
-require 'tempfile'
 
 class App
   VERSION = '1.0'
