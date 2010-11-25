@@ -39,6 +39,7 @@ require 'nokogiri'
 
 class App
   VERSION = '0.0.1'
+  # SET QUALITY OF OUTPUT JPGs. 85 has been tested and seems to be OK
   JPEG_QUALITY = 85
   
   attr_reader :options
@@ -66,7 +67,7 @@ class App
       process_command
       
       puts "\nFinished at #{Time.now}" if @options.verbose
-      puts "\nProcess took #{start_time - Time.now} seconds" if @options.verbose
+      puts "\nProcess took #{Time.now - start_time} seconds" if @options.verbose
       
     else
       output_usage
@@ -102,6 +103,7 @@ class App
       @options.marshal_dump.each do |name, val|        
         puts "  #{name} = #{val}"
       end
+      puts " "
     end
 
     # True if required arguments were provided
@@ -156,42 +158,41 @@ class App
     png_counter = 0
     converted_png_counter = 0
     indexed_pngs = []
-    if File.writable?("#{my_dir}/#{xml_file}")
-      doc = ::Nokogiri::XML(File.open("#{my_dir}/#{xml_file}", "r")) 
-      # fetch elements named 'url'
-      doc.elements.xpath("//url").each do |node| 
-        # fetch elements matching /.*.png/
-        if node.children.first.content =~ /.*\.(png|PNG)\z/
-          png_counter += 1
-          indexed_pngs << node.children.first.content 
-          output = `convert #{my_dir}/#{node.children.first.content} #{if @options.quiet; "-quiet"; end} -resize 1x1 -alpha on -channel o -format "%[fx:u.a]" info:`
-          result = $?.success?
-          # check convert exit-status
-          if result
-            output_array = []
-            # output string into array
-            output.each("\n") {|s| output_array << s.strip }
-            # check if the "magic" value returned from convert-command. If it's < 1 the image contains alpha transparency and is not converted.
-            unless output_array[0].to_i != 1
-              my_png = ::Magick::ImageList.new("#{my_dir}#{node.children.first.content}")
-              my_png.first.format = "JPG"
-              old_png = node.children.first.content
-              node.children.first.content = node.children.first.content.sub(/(.png)\z/,'.jpg')
-              my_png.write("#{my_dir}#{node.children.first.content}") { self.quality = jpg_quality }
-              File.delete("#{my_dir}#{old_png}")
-              converted_png_counter += 1
-            end
-          else
-            # something went wrong with convert-command. 
-            smart_puts("ERROR - #{my_dir}/#{node.children.first.content}: Failed to check png for alpha usage")
-          end
-        end
+
+    # read magazine.xml from filesystem
+    doc = ::Nokogiri::XML(File.open("#{my_dir}/#{xml_file}", "r")) 
+    # fetch elements named 'url'
+    doc.elements.xpath("//url").each do |node| 
+      # fetch elements in magazine.xml matching /.*.png/
+      if node.children.first.content =~ /.*\.(png|PNG)\z/
+        png_counter += 1
+        indexed_pngs << node.children.first 
       end
-    else
-      smart_puts("ERROR: XML file not writable!")
     end
+    
+    indexed_pngs.each do |indexed_png|
+      if File.exists?("#{my_dir}#{indexed_png.content}")
+        # read png from filesystem
+        my_png = ::Magick::Image.read("#{my_dir}#{indexed_png.content}").first
+        # check if image has any transparency. 0 means there's no transparency value
+        if my_png.resize(1,1).pixel_color(0,0).opacity == 0
+          my_png.format = "JPG"
+          old_png = indexed_png.content
+          # change filename in magazine.xml
+          indexed_png.content = indexed_png.content.sub(/(.png)\z/,'.jpg')
+          # change filename on filesystem
+          File.rename("#{my_dir}#{old_png}", "#{my_dir}#{indexed_png.content}")
+          # write converted png as jpg to filesystem
+          my_png.write("#{my_dir}#{indexed_png.content}") { self.quality = jpg_quality }
+          smart_puts("WARNING: We are at #{Dir.pwd} and PNG #{my_dir}#{old_png} was NOT DELETED") if File.exists?("#{my_dir}#{old_png}")
+          smart_puts("WARNING: We are at #{Dir.pwd} and JPG #{my_dir}#{indexed_png.content} was NOT CREATED") unless File.exists?("#{my_dir}#{indexed_png.content}") 
+          converted_png_counter += 1
+        end
+      end        
+    end
+    
     File.open("#{my_dir}/#{xml_file}", "w") {|f| doc.write_xml_to f}
-    smart_puts("INFO: Found #{png_counter} PNGs indexed in the XML out of #{total_pngs} existing ones.")
+    smart_puts("INFO: Found #{png_counter} PNGs indexed in the XML out of #{total_pngs} existing on filesystem.")
     smart_puts("INFO: Converted #{converted_png_counter} PNGs with no alpha-value to JPGs.")
   end   
   
@@ -227,6 +228,7 @@ class App
     return counter / 1048576.0
   end  
 
+  # return my_string if quiet-option wasn't set
   def smart_puts(my_string)
     puts my_string unless @options.quiet
   end
