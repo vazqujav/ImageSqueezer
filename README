@@ -1,4 +1,0 @@
-imagesqueezer.rb - script to reduce size of (png) images in Woodwing Digital Magazine folder
-magazine.org - directory containing non-compressed magazine issue for testing purposes
-php-optimizer - original php script which functionality should be moved into imagesqueezer.rb
-README - this file
