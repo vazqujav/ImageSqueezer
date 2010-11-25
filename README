@@ -1,1 +1,73 @@
-...i'm working on it. ;-)
+ImageSqueezer
+
+INTRO
+-----
+Woodwing's Digital Magazine Tools (http://www.woodwing.com/en/digital-magazine/ipad-now) are great to create magazines for tables devices. Unfortunately the images used to display the magazine could be much smaller and still shown in good quality. 
+
+The ImageSqueezer-Script takes care of this problem by doing the following changes:
+1. It looks for JPGs and adjusts their compression if needed.
+2. It looks for PNGs having no transparency. It converts those PNGs to JPGs and adjusts the compression on those JPGs.
+
+With the default values of the script it should be possible to reduce the size of your magazine of ~30%.
+
+NOTE: I WON'T PROVIDE ANY SUPPORT ON INSTALLING AND RUNNING THIS SCRIPT: RTFM! :) 
+FEEL FREE TO READ THIS DOCUMENT AND THE DOCUMENTED CODE IN THE SCRIPT TO UNDERSTAND HOW IT WORKS.
+
+INSTALLATION REQUIREMENTS
+-------------------------
+1. ImageMagick (http://www.imagemagick.org)
+2. Ruby (http://www.ruby-lang.org)
+3. RubyGems (http://rubygems.org)
+4. Nokogiri Gem (http://nokogiri.org)
+5. RMagick Gem (http://rmagick.rubyforge.org)
+
+This "ingredients" need to be installed and working for the script to run correctly. 
+You'll find instructions on how to install them on the websites mentioned above.
+
+INSTALLATION
+------------
+1. Download imagesqueezer.rb from Github (https://github.com/vazqujav/ImageSqueezer)
+2. Put the file imagesqueezer.rb somewhere you will find it again ;-)
+3. Done
+
+USAGE
+-----
+ruby imagesqueezer.rb [options] <directory>
+
+In words: Run the script and give the magazine directory as argument. 
+The script expects a file named 'magazine.xml' and a folder named 'images' inside the magazine directory.
+
+EXAMPLE
+-------
+ruby imagesqueezer.rb magazine/
+
+This would recursively parse the directory 'magazine/' and apply itself to all non-transparent PNGs and JPGs. 
+
+FAQ
+---
+How can I change the compression quality?
+Look for the constants PNG_COMPRESSION and JPG_COMPRESSION in the script. By changing them you're able to tweak the compression.
+
+AUTHOR
+------
+javier.vazquez@ringier.ch 
+
+COPYRIGHT
+---------
+Copyright 2010 Ringier AG, Javier Vazquez
+
+LICENSE
+-------
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 

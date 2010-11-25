@@ -4,7 +4,7 @@
 #   Compresses all JPGs and PNGs with no transparency to smaller JPGs.
 #
 # == Examples
-#   imagesqueezer.rb -Q 95 /home/myimages
+#   imagesqueezer.rb magazine/
 #   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs and JPGs.
 #
 # == Usage 
