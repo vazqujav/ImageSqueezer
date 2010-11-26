@@ -5,7 +5,8 @@
 #
 # == Examples
 #   imagesqueezer.rb magazine/
-#   This would recursively parse /home/myimages and apply itself to all non-transparent PNGs and JPGs.
+
+#   This would recursively parse the directory 'magazine/' and apply itself to all non-transparent PNGs and JPGs.
 #
 # == Usage 
 #   imagesqueezer.rb [options] directory
@@ -120,7 +121,6 @@ class App
     # True if required arguments were provided
     def arguments_valid?
       # TODO arguments should be validated in a better way.
-      # The path and the quality value are required arguments.
       true if @arguments.length == 1
     end
     
@@ -145,8 +145,8 @@ class App
     def process_command    
       old_size = directory_size_in_mb(@dir) 
       smart_puts("INFO: Starting script...")
-      existing_images = all_magazine_images("#{@dir}/images")
-      compress_jpgs(existing_images[:jpg], JPG_COMPRESSION)
+      existing_images = all_magazine_images(@dir, "#{@dir}/images")
+      compress_jpgs(@dir,existing_images[:jpg], JPG_COMPRESSION)
       old_png_count = existing_images[:png].count
       compress_pngs_without_alpha(@dir, "magazine.xml", PNG_COMPRESSION, old_png_count) 
       smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB. We saved #{(old_size - directory_size_in_mb(@dir)).round} MB!")
@@ -155,27 +155,21 @@ class App
 
     def process_standard_input
       input = @stdin.read      
-      # TO DO - process input
-      
-      # [Optional]
-      # @stdin.each do |line| 
-      #  # TO DO - process each line
-      #end
     end
   
   end   
   
-  def compress_jpgs(my_jpgs, jpg_quality)
+  def compress_jpgs(my_dir, my_jpgs, jpg_quality)
     smart_puts("INFO: Found #{my_jpgs.count} existing JPGs on filesystem.")
     my_jpgs.each do |image|
       tmp_jpg = Tempfile.new('tempjpg')
       # read jpg file
-      my_jpg = ::Magick::Image.read("#{@dir}/#{image}").first
+      my_jpg = ::Magick::Image.read("#{my_dir}/#{image}").first
       # write jpg image to tempfile
       my_jpg.write(tmp_jpg.path) { self.quality = jpg_quality }
       # check if new jpg would be smaller than the old one
-      if tmp_jpg.size < File.size("#{@dir}/#{image}")
-        my_jpg.write("#{@dir}/#{image}") { self.quality = jpg_quality }
+      if tmp_jpg.size < File.size("#{my_dir}/#{image}")
+        my_jpg.write("#{my_dir}/#{image}") { self.quality = jpg_quality }
       end
       tmp_jpg.close!
     end
@@ -224,9 +218,9 @@ class App
   end   
   
   # return array containing all PNG and JPG files in my_dir
-  def all_magazine_images(my_dir)
+  def all_magazine_images(my_dir, image_dir)
     image_files = { :jpg => [], :png => []}
-    Find.find(my_dir) do |path|
+    Find.find(image_dir) do |path|
       if FileTest.directory?(path)
         if File.basename(path)[0] == ?.
           Find.prune       # Don't look any further into this directory.
@@ -237,10 +231,10 @@ class App
         case
         # collect existing PNGs
         when path =~ /.*\.(png|PNG)\z/
-          image_files[:png] << path.gsub("#{@dir}/", '')
+          image_files[:png] << path.gsub("#{my_dir}/", '')
         # collect existing JPGs
         when path =~ /.*\.(jpg|JPG|jpeg|JPEG)\z/
-          image_files[:jpg] << path.gsub("#{@dir}/", '')
+          image_files[:jpg] << path.gsub("#{my_dir}/", '')
         end
       end
     end
