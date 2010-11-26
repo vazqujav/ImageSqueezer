@@ -36,6 +36,7 @@ ruby imagesqueezer.rb [options] <directory>
 
 In words: Run the script and give the magazine directory as argument. 
 The script expects a file named 'magazine.xml' and a folder named 'images' inside the magazine directory.
+Besides that it expects PNG paths to be in an XML node (in magazine.xml) named 'url'.
 
 EXAMPLE
 -------
