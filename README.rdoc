@@ -32,7 +32,7 @@ You'll find instructions on how to install them on the websites mentioned above.
 
 == Usage
 
-ruby imagesqueezer.rb [options] <directory>
+<tt>ruby imagesqueezer.rb [options] <directory> </tt>
 
 In words: Run the script and give the magazine directory as argument. 
 The script expects a file named 'magazine.xml' and a folder named 'images' inside the magazine directory.
@@ -40,7 +40,7 @@ Besides that it expects PNG paths to be in an XML node (in magazine.xml) named '
 
 == Example
 
-ruby imagesqueezer.rb magazine/
+<tt>ruby imagesqueezer.rb magazine/ </tt>
 
 This would recursively parse the directory 'magazine/' and apply itself to all non-transparent PNGs and JPGs. 
 
