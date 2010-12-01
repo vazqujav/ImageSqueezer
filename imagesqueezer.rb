@@ -149,7 +149,8 @@ class App
       compress_jpgs(@dir,existing_images[:jpg], JPG_COMPRESSION)
       old_png_count = existing_images[:png].count
       compress_pngs_without_alpha(@dir, "magazine.xml", PNG_COMPRESSION, old_png_count) 
-      smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB. We saved #{(old_size - directory_size_in_mb(@dir)).round} MB!")
+      smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB.")
+      get_stats(old_size, directory_size_in_mb(@dir))
       smart_puts("INFO: Script ended.")
     end
 
@@ -252,6 +253,19 @@ class App
   # return my_string if quiet-option wasn't set
   def smart_puts(my_string)
     puts my_string unless @options.quiet
+  end
+  
+  # Analyze and output result of script operation
+  def get_stats(before, after)
+    case 
+    when before.round < after.round
+      smart_puts("WARNING: Something went wrong, we gained weight!")
+    when before.round > after.round
+      percent = (((before - after) / before) * 100).round
+      smart_puts("INFO: Magazine is now #{percent}% smaller!")
+    when before.round == after.round
+      smart_puts("INFO: Found nothing to compress.")
+    end
   end
 
 # Create and run the application
