@@ -187,7 +187,7 @@ class App
     # fetch elements named 'url'
     doc.elements.xpath("//url").each do |node| 
       # fetch elements in magazine.xml matching /.*.png/
-      if node.children.first.content =~ /.*\.(png|PNG)\z/
+      if node.children.first.content =~ /\w*.(png|PNG)/
         png_counter += 1
         indexed_pngs << node.children.first 
       end
