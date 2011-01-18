@@ -149,7 +149,7 @@ class App
       compress_jpgs(@dir,existing_images[:jpg], JPG_COMPRESSION)
       old_png_count = existing_images[:png].count
       compress_pngs_without_alpha(@dir, "magazine.xml", PNG_COMPRESSION, old_png_count) 
-      smart_puts("INFO: Size was #{old_size.round} MB and is now #{directory_size_in_mb(@dir).round} MB.")
+      smart_puts("INFO: Size was around #{old_size.round} MB and is now around #{directory_size_in_mb(@dir).round} MB.")
       get_stats(old_size, directory_size_in_mb(@dir))
       smart_puts("INFO: Script ended.")
     end
@@ -162,6 +162,7 @@ class App
   
   def compress_jpgs(my_dir, my_jpgs, jpg_quality)
     smart_puts("INFO: Found #{my_jpgs.count} existing JPGs on filesystem.")
+    compressed_jpgs = 0
     my_jpgs.each do |image|
       tmp_jpg = Tempfile.new('tempjpg')
       # read jpg file
@@ -171,9 +172,11 @@ class App
       # check if new jpg would be smaller than the old one
       if tmp_jpg.size < File.size("#{my_dir}/#{image}")
         my_jpg.write("#{my_dir}/#{image}") { self.quality = jpg_quality }
+        compressed_jpgs += 1
       end
       tmp_jpg.close!
     end
+    smart_puts("INFO: Compressed #{compressed_jpgs} JPGs.")
   end
   
   # convert PNGs with no alpha value to JPGs, reduce JPG quality and change filename in XML file
@@ -226,6 +229,15 @@ class App
         if File.basename(path)[0] == ?.
           Find.prune       # Don't look any further into this directory.
         else
+          if File.basename(path) =~ /^story_.*/
+            next
+          else
+            if path == my_dir || path == image_dir
+              next
+            else
+              Find.prune
+            end
+          end
           next
         end
       else
@@ -233,7 +245,6 @@ class App
         # collect existing PNGs
         when path =~ /.*\.(png|PNG)\z/
           image_files[:png] << path.gsub("#{my_dir}/", '')
-        # collect existing JPGs
         when path =~ /.*\.(jpg|JPG|jpeg|JPEG)\z/
           image_files[:jpg] << path.gsub("#{my_dir}/", '')
         end
@@ -264,7 +275,7 @@ class App
       percent = (((before - after) / before) * 100).round
       smart_puts("INFO: Magazine is now #{percent}% smaller!")
     when before.round == after.round
-      smart_puts("INFO: Found nothing to compress.")
+      smart_puts("INFO: No noteworthy compression has been achieved.")
     end
   end
 
