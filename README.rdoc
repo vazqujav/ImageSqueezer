@@ -4,7 +4,7 @@
 
 Woodwing's Digital Magazine Tools (http://www.woodwing.com/en/digital-magazine/ipad-now) are great to create magazines for tables devices. Unfortunately the images used to display the magazine could be much smaller and still shown in good quality. 
 
-The ImageSqueezer-Script takes care of this problem by doing the following changes:
+The ImageSqueezer-Script takes care of this problem by doing the following changes in /magazine/images/story_* :
 1. It looks for JPGs and adjusts their compression if needed.
 2. It looks for PNGs having no transparency. It converts those PNGs to JPGs and adjusts the compression on those JPGs.
 
@@ -22,7 +22,8 @@ FEEL FREE TO READ THIS DOCUMENT AND THE DOCUMENTED CODE IN THE SCRIPT TO UNDERST
 * RMagick Gem (http://rmagick.rubyforge.org)
 
 This "ingredients" need to be installed and working for the script to run correctly. 
-You'll find instructions on how to install them on the websites mentioned above.
+You'll find instructions on how to install them on the websites mentioned above. 
+Please use RubyGems to install Nokogiri and RMagick if you don't know exactly what you're doing.
 
 == Installation
 
@@ -42,7 +43,7 @@ Besides that it expects PNG paths to be in an XML node (in magazine.xml) named '
 
 <tt>ruby imagesqueezer.rb magazine/ </tt>
 
-This would recursively parse the directory 'magazine/' and apply itself to all non-transparent PNGs and JPGs. 
+This would recursively parse '/magazine/images/story_*' and apply itself to all JPGs and non-transparent PNGs. 
 
 == FAQ
 
@@ -55,7 +56,7 @@ javier.vazquez@ringier.ch
 
 == Copyright
 
-Copyright 2010 Ringier AG, Javier Vazquez
+Copyright 2011 Ringier AG, Javier Vazquez
 
 == License
 
