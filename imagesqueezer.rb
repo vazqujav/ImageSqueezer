@@ -229,16 +229,11 @@ class App
         if File.basename(path)[0] == ?.
           Find.prune       # Don't look any further into this directory.
         else
-          if File.basename(path) =~ /^story_.*/
+          if File.basename(path) =~ /^story_.*/ || path == image_dir
             next
           else
-            if path == my_dir || path == image_dir
-              next
-            else
-              Find.prune
-            end
+            Find.prune
           end
-          next
         end
       else
         case

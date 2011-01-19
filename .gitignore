@@ -1,3 +1,5 @@
 magazine/
 !.gitignore
 .DS_Store
+test.rb
+magazine.bundle/
