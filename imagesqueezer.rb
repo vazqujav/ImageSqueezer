@@ -23,7 +23,7 @@
 #   Javier Vazquez
 #
 # == Copyright
-#   Copyright 2010 Ringier AG, Javier Vazquez
+#   Copyright 2011 Ringier AG, Javier Vazquez
 # == License
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ require 'RMagick'
 require 'nokogiri'
 
 class App
-  VERSION = '1.0'
+  VERSION = '1.1'
   # Quality of compressed JPG for former PNG
   PNG_COMPRESSION = 85
   # Quality of compressed JPG for former JPG
@@ -205,6 +205,7 @@ class App
           my_png.format = "JPG"
           old_png = indexed_png.content
           # change filename in magazine.xml
+          # FIXME Possibly missing an image reference in the XML in case of Webelements/Hotspots?
           indexed_png.content = indexed_png.content.sub(/(.png)\z/,'.jpg')
           # change filename on filesystem
           File.rename("#{my_dir}/#{old_png}", "#{my_dir}/#{indexed_png.content}")
