@@ -2,7 +2,7 @@
 
 == Intro
 
-Woodwing's Digital Magazine Tools (http://www.woodwing.com/en/digital-magazine/ipad-now) are great to create magazines for tables devices. Unfortunately the images used to display the magazine could be much smaller and still shown in good quality. 
+Woodwing's Digital Magazine Tools (http://www.woodwing.com/en/digital-magazine/ipad-now) are great to create magazines for tablet devices. Unfortunately the images used to display the magazine could be much smaller and still shown in good quality. 
 
 The ImageSqueezer-Script takes care of this problem by doing the following changes in /magazine/images/story_* :
 1. It looks for JPGs and adjusts their compression if needed.
